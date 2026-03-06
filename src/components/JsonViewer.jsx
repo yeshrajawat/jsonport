@@ -1,141 +1,350 @@
 import { useState, useRef } from "react";
-import ReactJson from "@microlink/react-json-view";
+import Editor from "@monaco-editor/react";
+import * as monaco from "monaco-editor";
 import "../app.css";
 
 export default function JsonViewer() {
 
   const [jsonText, setJsonText] = useState("");
-  const [jsonData, setJsonData] = useState(null);
-
   const [searchTerm, setSearchTerm] = useState("");
-  const [matches, setMatches] = useState([]);
-  const [currentMatch, setCurrentMatch] = useState(0);
+  const [results, setResults] = useState([]);
+  const [errorMessage, setErrorMessage] = useState("");
 
-  const textareaRef = useRef(null);
+  const editorRef = useRef(null);
+
+  function handleEditorDidMount(editor) {
+    editorRef.current = editor;
+  }
+
+  /* ---------- Validate JSON ---------- */
 
   const handleValidate = () => {
+
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    const model = editor.getModel();
+    if (!model) return;
+
     try {
-      const parsed = JSON.parse(jsonText);
-      setJsonData(parsed);
-      alert("Valid JSON ✅");
-    } catch {
-      alert("Invalid JSON ❌");
+
+      JSON.parse(jsonText);
+
+      setErrorMessage("JSON validated");
+
+      monaco.editor.setModelMarkers(model, "json", []);
+
+    } catch (err) {
+
+      setErrorMessage(err.message);
+
+      const match = err.message.match(/position\s(\d+)/i);
+      if (!match) return;
+
+      const pos = parseInt(match[1], 10);
+
+      const position = model.getPositionAt(pos);
+
+      const line = position.lineNumber;
+      const column = position.column;
+
+      monaco.editor.setModelMarkers(model, "json", [
+        {
+          startLineNumber: line,
+          startColumn: column,
+          endLineNumber: line,
+          endColumn: column + 1,
+          message: err.message,
+          severity: monaco.MarkerSeverity.Error
+        }
+      ]);
+
+      editor.setPosition({
+        lineNumber: line,
+        column: column
+      });
+
+      editor.revealLineInCenter(line);
+
+      editor.focus();
     }
   };
+
+  /* ---------- Format ---------- */
 
   const handleFormat = () => {
+
     try {
+
       const parsed = JSON.parse(jsonText);
+
       setJsonText(JSON.stringify(parsed, null, 2));
-    } catch {
-      alert("Invalid JSON");
+
+      setErrorMessage("");
+
+    } catch (err) {
+
+      setErrorMessage(err.message);
+
     }
+
   };
+
+  /* ---------- Minify ---------- */
 
   const handleMinify = () => {
+
     try {
+
       const parsed = JSON.parse(jsonText);
+
       setJsonText(JSON.stringify(parsed));
-    } catch {
-      alert("Invalid JSON");
+
+      setErrorMessage("");
+
+    } catch (err) {
+
+      setErrorMessage(err.message);
+
     }
+
   };
 
-  const handleClear = () => {
-    setJsonText("");
-    setJsonData(null);
-    setMatches([]);
-  };
+  /* ---------- Copy ---------- */
 
   const handleCopy = () => {
     navigator.clipboard.writeText(jsonText);
   };
 
-  // SEARCH TEXT
-  const handleSearch = () => {
+  /* ---------- Download JSON ---------- */
 
-    if (!searchTerm) return;
+  const handleDownload = () => {
 
-    const regex = new RegExp(searchTerm, "gi");
-    const found = [];
-    let match;
+    if (!jsonText) return;
 
-    while ((match = regex.exec(jsonText))) {
-      found.push(match.index);
+    try {
+
+      JSON.parse(jsonText);
+
+      const blob = new Blob([jsonText], {
+        type: "application/json"
+      });
+
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+
+      a.href = url;
+      a.download = "data.json";
+
+      document.body.appendChild(a);
+
+      a.click();
+
+      document.body.removeChild(a);
+
+      URL.revokeObjectURL(url);
+
+    } catch {
+      setErrorMessage("Fix JSON before downloading");
     }
 
-    setMatches(found);
-    setCurrentMatch(0);
-
-    highlightMatch(found[0]);
   };
 
-  const highlightMatch = (index) => {
+  /* ---------- Clear ---------- */
 
-    const textarea = textareaRef.current;
-
-    if (!textarea || index === undefined) return;
-
-    textarea.focus();
-    textarea.setSelectionRange(index, index + searchTerm.length);
-
+  const handleClear = () => {
+    setJsonText("");
+    setResults([]);
+    setErrorMessage("");
   };
 
-  const nextMatch = () => {
+  /* ---------- Upload ---------- */
 
-    if (matches.length === 0) return;
+  const handleUpload = (event) => {
 
-    const next = (currentMatch + 1) % matches.length;
-    setCurrentMatch(next);
+    const file = event.target.files[0];
+    if (!file) return;
 
-    highlightMatch(matches[next]);
+    const reader = new FileReader();
+
+    reader.onload = (e) => {
+      setJsonText(e.target.result);
+    };
+
+    reader.readAsText(file);
   };
 
-  const prevMatch = () => {
+  /* ---------- Load Sample ---------- */
 
-    if (matches.length === 0) return;
+  const handleLoadSample = () => {
 
-    const prev =
-      (currentMatch - 1 + matches.length) % matches.length;
+    const sample = {
+      users: [
+        { id: 1, name: "Alice", email: "alice@example.com" },
+        { id: 2, name: "Bob", email: "bob@example.com" }
+      ]
+    };
 
-    setCurrentMatch(prev);
+    setJsonText(JSON.stringify(sample, null, 2));
+  };
 
-    highlightMatch(matches[prev]);
+  /* ---------- Search ---------- */
+
+  const handleSearch = () => {
+
+    if (!searchTerm) {
+      setResults([]);
+      return;
+    }
+  
+    let parsed;
+  
+    try {
+      parsed = JSON.parse(jsonText);
+    } catch {
+      setErrorMessage("Invalid JSON — cannot search paths");
+      return;
+    }
+  
+    const resultsList = [];
+  
+    function traverse(obj, path = "") {
+  
+      if (Array.isArray(obj)) {
+  
+        obj.forEach((item, index) => {
+          traverse(item, `${path}[${index}]`);
+        });
+  
+      } else if (typeof obj === "object" && obj !== null) {
+  
+        Object.keys(obj).forEach(key => {
+  
+          const newPath = path ? `${path}.${key}` : key;
+  
+          if (key.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              String(obj[key]).toLowerCase().includes(searchTerm.toLowerCase())) {
+  
+            resultsList.push({
+              path: newPath,
+              value: obj[key]
+            });
+  
+          }
+  
+          traverse(obj[key], newPath);
+  
+        });
+  
+      }
+  
+    }
+  
+    traverse(parsed);
+  
+    const editor = editorRef.current;
+    const model = editor.getModel();
+  
+    const matches = model.findMatches(
+      searchTerm,
+      true,
+      false,
+      false,
+      null,
+      true
+    );
+  
+    const formatted = resultsList.map((r, i) => {
+  
+      const match = matches[i];
+  
+      return {
+        line: match?.range.startLineNumber || 0,
+        column: match?.range.startColumn || 0,
+        text: model.getLineContent(match?.range.startLineNumber || 1),
+        path: r.path
+      };
+  
+    });
+  
+    setResults(formatted);
+  
+  };
+  /* ---------- Jump to result ---------- */
+
+  const jumpToResult = (line, column) => {
+
+    const editor = editorRef.current;
+
+    editor.revealLineInCenter(line);
+
+    editor.setSelection({
+      startLineNumber: line,
+      startColumn: column,
+      endLineNumber: line,
+      endColumn: column + searchTerm.length
+    });
+
+    editor.focus();
   };
 
   return (
 
     <div className="app-container">
 
+      {/* Header */}
+
       <div className="header">
-        ⚡ Fast JSON Explorer
+        ⚓ JSONPort
+        <div className="subtitle">
+          Explore • Validate • Transform JSON
+        </div>
       </div>
 
       <div className="toolbar">
 
-        <button className="btn btn-validate" onClick={handleValidate}>
+        <label className="btn upload-btn">
+          ⬆ Upload JSON
+          <input
+            type="file"
+            accept=".json"
+            onChange={handleUpload}
+            hidden
+          />
+        </label>
+
+        <button className="btn" onClick={handleLoadSample}>
+          Load Sample
+        </button>
+
+        <button className="btn btn-primary" onClick={handleValidate}>
           Validate
         </button>
 
-        <button className="btn btn-format" onClick={handleFormat}>
+        <button className="btn" onClick={handleFormat}>
           Format
         </button>
 
-        <button className="btn btn-minify" onClick={handleMinify}>
+        <button className="btn" onClick={handleMinify}>
           Minify
         </button>
 
-        <button className="btn btn-copy" onClick={handleCopy}>
+        <button className="btn" onClick={handleCopy}>
           Copy
         </button>
 
-        <button className="btn btn-clear" onClick={handleClear}>
+        <button className="btn" onClick={handleDownload}>
+          Download
+        </button>
+
+        <button className="btn" onClick={handleClear}>
           Clear
         </button>
 
         <input
           className="search-input"
-          placeholder="Search in JSON..."
+          placeholder="Search JSON..."
           value={searchTerm}
           onChange={(e)=>setSearchTerm(e.target.value)}
         />
@@ -144,55 +353,83 @@ export default function JsonViewer() {
           Find
         </button>
 
-        <button className="btn" onClick={prevMatch}>
-          ↑
-        </button>
-
-        <button className="btn" onClick={nextMatch}>
-          ↓
-        </button>
-
       </div>
+
+      {errorMessage && (
+        <div className={`error-bar ${errorMessage === "JSON validated" ? "success" : ""}`}>
+          {errorMessage === "JSON validated" ? "✔" : "⚠"} {errorMessage}
+        </div>
+      )}
 
       <div className="main">
 
         <div className="editor-panel">
 
-          <textarea
-            ref={textareaRef}
-            className="json-editor"
-            value={jsonText}
-            onChange={(e)=>setJsonText(e.target.value)}
-            placeholder="Paste JSON here..."
-          />
+          <div className="panel-header">
+            JSON • {(jsonText.length/1024).toFixed(2)} KB • {jsonText.split("\n").length} lines
+          </div>
+
+          <div className="panel-content">
+
+            <Editor
+              height="100%"
+              defaultLanguage="json"
+              theme="vs"
+              value={jsonText}
+              onMount={handleEditorDidMount}
+              onChange={(value)=>setJsonText(value || "")}
+              options={{
+                minimap:{enabled:false},
+                fontSize:14,
+                automaticLayout:true,
+                wordWrap:"on"
+              }}
+            />
+
+          </div>
 
         </div>
 
         <div className="viewer-panel">
 
-          {jsonData && (
+          <div className="panel-header">
+            Search Results
+            <span className="result-count">{results.length} matches</span>
+          </div>
 
-            <ReactJson
-              src={jsonData}
-              name={false}
-              collapsed={1}
-              displayDataTypes={false}
-              theme="monokai"
-            />
+          <div className="results-list">
 
-          )}
+            {results.map((r,index)=>(
+
+              <div
+                key={index}
+                className="result-item"
+                onClick={()=>jumpToResult(r.line,r.column)}
+              >
+
+                <div className="result-meta">
+                  {r.path}
+                </div>
+
+                <div
+                  className="result-code"
+                  dangerouslySetInnerHTML={{
+                    __html:r.text.replace(
+                      new RegExp(searchTerm,"gi"),
+                      `<mark>${searchTerm}</mark>`
+                    )
+                  }}
+                />
+
+              </div>
+
+            ))}
+
+          </div>
 
         </div>
 
       </div>
-
-      {matches.length > 0 && (
-
-        <div className="status-bar">
-          Match {currentMatch + 1} of {matches.length}
-        </div>
-
-      )}
 
     </div>
 
