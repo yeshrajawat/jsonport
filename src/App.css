@@ -217,3 +217,18 @@
         font-size:12px;
         opacity:0.7;
       }
+
+      .json-repair-highlight{
+        background: #fff3b0;
+        border-bottom:2px solid #f59e0b;
+      }
+
+        .error-bar.success{
+          background:#e7f8ec;
+          color:#1b7a3e;
+          border-bottom:1px solid #b7e3c6;
+        }
+        .json-repair-highlight{
+          background:rgba(16,185,129,0.35);
+          border-radius:3px;
+          }

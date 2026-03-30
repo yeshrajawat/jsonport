@@ -1,20 +1,48 @@
 import { useState, useRef, useEffect } from "react";
 import Editor from "@monaco-editor/react";
 import * as monaco from "monaco-editor";
+import { jsonrepair } from "jsonrepair";
 import "../app.css";
+import { diffChars } from "diff";
 
 export default function JsonViewer() {
 
   const [jsonText, setJsonText] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
   const [results, setResults] = useState([]);
+  const [jsonIndex, setJsonIndex] = useState([]);
   const [errorMessage, setErrorMessage] = useState("");
+  const [jsonStatus, setJsonStatus] = useState("unknown");
+  const [repairChanges, setRepairChanges] = useState([]);
+const [panelMode, setPanelMode] = useState("search"); 
+// "search" | "repairs"
+
+  const MAX_SIZE = 5 * 1024 * 1024; // 5MB  
   const [stats, setStats] = useState({
     objects:0,
     arrays:0,
     depth:0
   });
 
+
+  useEffect(()=>{
+
+    if(!searchTerm){
+      setResults([]);
+      return;
+    }
+  
+    const term = searchTerm.toLowerCase();
+  
+    const matches = jsonIndex.filter(item =>
+      item.pathLower.includes(term) ||
+      item.valueLower.includes(term)
+    );
+  
+    setPanelMode("search");
+    setResults(matches);
+  
+  },[searchTerm]);
   const editorRef = useRef(null);
 
   function handleEditorDidMount(editor) {
@@ -54,21 +82,47 @@ export default function JsonViewer() {
 
   };
 
-  useEffect(()=>{
+  /* ---------- Build JSON Index ---------- */
 
-    try{
-      const parsed = JSON.parse(jsonText);
-      computeStats(parsed);
-    }
-    catch{
-      setStats({
-        objects:0,
-        arrays:0,
-        depth:0
-      });
+  const buildIndex = (json) => {
+
+    const index = [];
+
+    function traverse(obj,path=""){
+
+      if(Array.isArray(obj)){
+
+        obj.forEach((item,i)=>{
+          traverse(item,`${path}[${i}]`);
+        });
+
+      }
+      else if(typeof obj === "object" && obj !== null){
+
+        Object.entries(obj).forEach(([key,value])=>{
+
+          const newPath = path ? `${path}.${key}` : key;
+
+          index.push({
+            path:newPath,
+            value:value,
+            pathLower:newPath.toLowerCase(),
+            valueLower:String(value).toLowerCase()
+          });
+
+          traverse(value,newPath);
+
+        });
+
+      }
+
     }
 
-  },[jsonText]);
+    traverse(json);
+
+    setJsonIndex(index);
+
+  };
 
   /* ---------- Validate ---------- */
 
@@ -82,15 +136,20 @@ export default function JsonViewer() {
 
     try {
 
-      JSON.parse(jsonText);
+      const parsed = JSON.parse(jsonText);
 
       setErrorMessage("JSON validated");
+      setJsonStatus("valid");
 
       monaco.editor.setModelMarkers(model,"json",[]);
+
+      computeStats(parsed);
+      buildIndex(parsed);
 
     } catch (err) {
 
       setErrorMessage(err.message);
+      setJsonStatus("invalid");
 
       const match = err.message.match(/position\s(\d+)/i);
       if(!match) return;
@@ -122,6 +181,166 @@ export default function JsonViewer() {
     }
   };
 
+  /* ---------- Repair JSON ---------- */
+
+  const goToRepair = (line, column) => {
+
+    const editor = editorRef.current;
+    if(!editor) return;
+  
+    editor.setPosition({
+      lineNumber: line,
+      column: column
+    });
+  
+    editor.revealLineInCenter(line);
+    editor.focus();
+  
+  };
+  const handleRepair = () => {
+
+    try{
+  
+      const original = jsonText;
+  
+      const repaired = repairJson(original);
+  
+      const repairs = computeRepairChanges(original, repaired);
+  
+      const parsed = JSON.parse(repaired);
+  
+      const formatted = JSON.stringify(parsed,null,2);
+  
+      setJsonText(formatted);
+  
+      setRepairChanges(repairs);
+  
+      setPanelMode("repairs");
+  
+      setJsonStatus("valid");
+      setErrorMessage("✔ JSON repaired successfully");
+  
+      computeStats(parsed);
+      buildIndex(parsed);
+  
+      // highlight the repaired parts
+      highlightRepairs(original, repaired);
+  
+    }
+    catch(err){
+      setErrorMessage("⚠ Could not repair this JSON");
+    }
+  
+  };
+
+  function repairJson(input){
+
+    let text = input;
+  
+    // normalize quotes
+    text = text.replace(/'/g,'"');
+  
+    // fix broken keys
+    text = text.replace(/"([^"]+):/g,'"$1":');
+  
+    // add quotes around keys
+    text = text.replace(/([{,]\s*)([A-Za-z0-9_]+)\s*:/g,'$1"$2":');
+  
+    // missing commas
+    text = text.replace(/"\s*\n\s*"/g,'",\n"');
+  
+    // remove trailing commas
+    text = text.replace(/,\s*([}\]])/g,'$1');
+  
+    // final repair
+    return jsonrepair(text);
+  
+  }
+
+  const computeRepairChanges = (original, repaired) => {
+
+    const editor = editorRef.current;
+    if(!editor) return [];
+  
+    const model = editor.getModel();
+    if(!model) return [];
+  
+    const changes = diffChars(original, repaired);
+  
+    let pointer = 0;
+    const repairs = [];
+  
+    changes.forEach(part => {
+  
+      if(part.added){
+  
+        const start = model.getPositionAt(pointer);
+  
+        repairs.push({
+          line: start.lineNumber,
+          column: start.column,
+          after: part.value
+        });
+  
+      }
+  
+      if(!part.removed){
+        pointer += part.value.length;
+      }
+  
+    });
+  
+    return repairs;
+  };
+  const highlightRepairs = (original, repaired) => {
+
+    const editor = editorRef.current;
+    if(!editor) return;
+  
+    const model = editor.getModel();
+    if(!model) return;
+  
+    const changes = diffChars(original, repaired);
+  
+    let pointer = 0;
+  
+    const decorations = [];
+  
+    changes.forEach(part => {
+  
+      if(part.added){
+  
+        const start = model.getPositionAt(pointer);
+        const end = model.getPositionAt(pointer + part.value.length);
+  
+        decorations.push({
+          range:new monaco.Range(
+            start.lineNumber,
+            start.column,
+            end.lineNumber,
+            end.column
+          ),
+          options:{
+            inlineClassName:"json-repair-highlight"
+          }
+        });
+  
+      }
+  
+      if(!part.removed){
+        pointer += part.value.length;
+      }
+  
+    });
+  
+    const ids = editor.deltaDecorations([], decorations);
+  
+    // Remove highlight after 5 seconds
+    setTimeout(()=>{
+      editor.deltaDecorations(ids, []);
+    },5000);
+  
+  };
   /* ---------- Format ---------- */
 
   const handleFormat = () => {
@@ -132,10 +351,15 @@ export default function JsonViewer() {
 
       setJsonText(JSON.stringify(parsed,null,2));
       setErrorMessage("");
+      setJsonStatus("valid");
+
+      computeStats(parsed);
+      buildIndex(parsed);
 
     }
     catch(err){
       setErrorMessage(err.message);
+      setJsonStatus("invalid");
     }
 
   };
@@ -150,10 +374,15 @@ export default function JsonViewer() {
 
       setJsonText(JSON.stringify(parsed));
       setErrorMessage("");
+      setJsonStatus("valid");
+
+      computeStats(parsed);
+      buildIndex(parsed);
 
     }
     catch(err){
       setErrorMessage(err.message);
+      setJsonStatus("invalid");
     }
 
   };
@@ -207,7 +436,9 @@ export default function JsonViewer() {
   const handleClear = ()=>{
     setJsonText("");
     setResults([]);
+    setJsonIndex([]);
     setErrorMessage("");
+    setJsonStatus("unknown");
   };
 
   /* ---------- Upload ---------- */
@@ -216,15 +447,25 @@ export default function JsonViewer() {
 
     const file = event.target.files[0];
     if(!file) return;
-
+  
     const reader = new FileReader();
-
+  
     reader.onload = (e)=>{
-      setJsonText(e.target.result);
+  
+      const text = e.target.result;
+  
+      setJsonText(text);
+      setJsonStatus("unknown");
+      setErrorMessage("");
+      setResults([]);
+      setJsonIndex([]);
+  
     };
-
+  
     reader.readAsText(file);
-
+  
+    // Important: reset input so same file can be uploaded again
+    event.target.value = "";
   };
 
   /* ---------- Load Sample ---------- */
@@ -238,68 +479,43 @@ export default function JsonViewer() {
       ]
     };
 
-    setJsonText(JSON.stringify(sample,null,2));
+    const formatted = JSON.stringify(sample,null,2);
+
+    setJsonText(formatted);
+    setJsonStatus("valid");
+
+    computeStats(sample);
+    buildIndex(sample);
 
   };
 
-  /* ---------- Search with JSON Path ---------- */
+  /* ---------- Fast Search ---------- */
 
   const handleSearch = ()=>{
 
+    if(jsonStatus !== "valid"){
+      setErrorMessage("Validate JSON before searching");
+      return;
+    }
+  
     if(!searchTerm){
       setResults([]);
-      return;
+      return;setTimeout
     }
-
-    let parsed;
-
-    try{
-      parsed = JSON.parse(jsonText);
-    }
-    catch{
-      setErrorMessage("Invalid JSON");
-      return;
-    }
-
-    const matches = [];
-
-    function traverse(obj,path=""){
-
-      if(Array.isArray(obj)){
-
-        obj.forEach((item,i)=>{
-          traverse(item,`${path}[${i}]`);
-        });
-
-      }
-      else if(typeof obj === "object" && obj !== null){
-
-        Object.keys(obj).forEach(key=>{
-
-          const newPath = path ? `${path}.${key}` : key;
-
-          if(key.toLowerCase().includes(searchTerm.toLowerCase()) ||
-             String(obj[key]).toLowerCase().includes(searchTerm.toLowerCase())){
-
-            matches.push({
-              path:newPath,
-              value:obj[key]
-            });
-
-          }
-
-          traverse(obj[key],newPath);
-
-        });
-
-      }
-
-    }
-
-    traverse(parsed);
-
+  
+    // switch panel to search results
+    setPanelMode("search");
+  
+    const term = searchTerm.toLowerCase();
+  
+    const matches = jsonIndex.filter(item =>
+      item.pathLower.includes(term) ||
+      item.valueLower.includes(term)
+    );
+  
+    setPanelMode("search");
     setResults(matches);
-
+  
   };
 
   return (
@@ -324,6 +540,12 @@ export default function JsonViewer() {
 
         <button className="btn btn-primary" onClick={handleValidate}>Validate</button>
 
+        {jsonStatus !== "valid" && (
+          <button className="btn" onClick={handleRepair}>
+            Repair JSON
+          </button>
+        )}
+
         <button className="btn" onClick={handleFormat}>Format</button>
 
         <button className="btn" onClick={handleMinify}>Minify</button>
@@ -346,8 +568,8 @@ export default function JsonViewer() {
       </div>
 
       {errorMessage && (
-        <div className={`error-bar ${errorMessage === "JSON validated" ? "success" : ""}`}>
-          {errorMessage === "JSON validated" ? "✔" : "⚠"} {errorMessage}
+        <div className={`error-bar ${jsonStatus === "valid" ? "success" : ""}`}>
+          {jsonStatus === "valid" ? "✔" : "⚠"} {errorMessage}
         </div>
       )}
 
@@ -355,10 +577,10 @@ export default function JsonViewer() {
 
         <div className="editor-panel">
 
-          <div className="panel-header">
-            JSON • {(jsonText.length/1024).toFixed(2)} KB • {jsonText.split("\n").length} lines
-            • {stats.objects} objects • {stats.arrays} arrays • depth {stats.depth}
-          </div>
+        <div className="panel-header">
+  JSON • {(jsonText.length/1024).toFixed(2)} KB • {jsonText.split("\n").length} lines
+  • {stats.objects} objects • {stats.arrays} arrays • depth {stats.depth}
+</div>
 
           <div className="panel-content">
 
@@ -368,7 +590,11 @@ export default function JsonViewer() {
               theme="vs"
               value={jsonText}
               onMount={handleEditorDidMount}
-              onChange={(value)=>setJsonText(value || "")}
+              onChange={(value)=>{
+                setJsonText(value || "");
+                setJsonStatus("unknown");
+                setErrorMessage("");
+              }}
               options={{
                 minimap:{enabled:false},
                 fontSize:14,
@@ -383,39 +609,65 @@ export default function JsonViewer() {
 
         <div className="viewer-panel">
 
-          <div className="panel-header">
-            Search Results
-            <span className="result-count">{results.length} matches</span>
-          </div>
+        <div className="panel-header">
 
-          <div className="results-list">
+{panelMode === "search" ? "Search Results" : "Repair Changes"}
 
-            {results.map((r,index)=>(
+<span className="result-count">
+  {panelMode === "search"
+    ? `${results.length} matches`
+    : `${repairChanges.length} repairs`
+  }
+</span>
 
-              <div key={index} className="result-item">
+</div>
 
-                <div className="result-meta">
+<div className="results-list">
 
-                  {r.path}
+{panelMode === "search" && results.map((r,index)=>(
 
-                  <span
-                    className="copy-path"
-                    onClick={()=>copyPath(r.path)}
-                  >
-                    📋
-                  </span>
+  <div key={index} className="result-item">
 
-                </div>
+    <div className="result-meta">
+      {r.path}
 
-                <div className="result-code">
-                  {JSON.stringify(r.value)}
-                </div>
+      <span
+        className="copy-path"
+        onClick={()=>copyPath(r.path)}
+      >
+        📋
+      </span>
+    </div>
 
-              </div>
+    <div className="result-code">
+      {JSON.stringify(r.value)}
+    </div>
 
-            ))}
+  </div>
 
-          </div>
+))}
+
+{panelMode === "repairs" && repairChanges.map((r,index)=>(
+
+  <div
+    key={index}
+    className="result-item"
+    onClick={()=>goToRepair(r.line,r.column)}
+  >
+
+    <div className="result-meta">
+      Line {r.line}
+    </div>
+
+    <div className="result-code">
+      Added → {r.after}
+    </div>
+
+  </div>
+
+))}
+
+</div>
 
         </div>
 
