@@ -235,62 +235,70 @@ const [panelMode, setPanelMode] = useState("search");
 
   function repairJson(input){
 
-    let text = input;
-  
-    // normalize quotes
-    text = text.replace(/'/g,'"');
-  
-    // fix broken keys
-    text = text.replace(/"([^"]+):/g,'"$1":');
-  
-    // add quotes around keys
-    text = text.replace(/([{,]\s*)([A-Za-z0-9_]+)\s*:/g,'$1"$2":');
-  
-    // missing commas
-    text = text.replace(/"\s*\n\s*"/g,'",\n"');
-  
-    // remove trailing commas
-    text = text.replace(/,\s*([}\]])/g,'$1');
-  
-    // final repair
-    return jsonrepair(text);
+    return jsonrepair(input);
   
   }
 
   const computeRepairChanges = (original, repaired) => {
 
     const editor = editorRef.current;
-    if(!editor) return [];
+    if (!editor) return [];
   
     const model = editor.getModel();
-    if(!model) return [];
+    if (!model) return [];
   
     const changes = diffChars(original, repaired);
   
-    let pointer = 0;
     const repairs = [];
+    let pointer = 0;
+    let previousRemoved = null;
   
     changes.forEach(part => {
   
-      if(part.added){
-  
-        const start = model.getPositionAt(pointer);
-  
-        repairs.push({
-          line: start.lineNumber,
-          column: start.column,
-          after: part.value
-        });
-  
+      // Handle removed text
+      if (part.removed) {
+        previousRemoved = part;
+        return;
       }
   
-      if(!part.removed){
+      // Handle added text
+      if (part.added) {
+  
+        const pos = model.getPositionAt(pointer);
+  
+        // Replace operation
+        if (previousRemoved) {
+          repairs.push({
+            line: pos.lineNumber,
+            column: pos.column,
+            type: "replace",
+            before: previousRemoved.value,
+            after: part.value
+          });
+  
+          previousRemoved = null;
+        }
+        else {
+          repairs.push({
+            line: pos.lineNumber,
+            column: pos.column,
+            type: "added",
+            text: part.value
+          });
+        }
+      }
+  
+      // Advance pointer only if text exists in repaired output
+      if (!part.removed) {
         pointer += part.value.length;
       }
   
     });
   
-    return repairs;
+    return repairs.filter(r =>
+      (r.text && r.text.trim().length > 0) ||
+      (r.before && r.before.trim().length > 0)
+    );
   };
   const highlightRepairs = (original, repaired) => {
 
@@ -660,8 +668,10 @@ const [panelMode, setPanelMode] = useState("search");
     </div>
 
     <div className="result-code">
-      Added → {r.after}
-    </div>
+  {r.type === "added" && `Added → ${r.text}`}
+  {r.type === "removed" && `Removed → ${r.text}`}
+  {r.type === "replace" && `Replaced → ${r.before} with ${r.after}`}
+</div>
 
   </div>
 
