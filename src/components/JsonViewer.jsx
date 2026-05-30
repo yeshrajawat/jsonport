@@ -4,7 +4,7 @@ import * as monaco from "monaco-editor";
 import { jsonrepair } from "jsonrepair";
 import "../app.css";
 import { diffChars } from "diff";
-
+import { useNavigate } from "react-router-dom";
 export default function JsonViewer() {
 
   const [jsonText, setJsonText] = useState("");
@@ -17,6 +17,7 @@ export default function JsonViewer() {
 const [panelMode, setPanelMode] = useState("search"); 
 // "search" | "repairs"
 
+const navigate = useNavigate();
   const MAX_SIZE = 5 * 1024 * 1024; // 5MB  
   const [stats, setStats] = useState({
     objects:0,
@@ -530,12 +531,27 @@ const [panelMode, setPanelMode] = useState("search");
 
     <div className="app-container">
 
-      <div className="header">
-        ⚓ JSONPort
-        <div className="subtitle">
-          Explore • Validate • Transform JSON
-        </div>
-      </div>
+
+<div className="header">
+
+  <div className="header-left">
+    ⚓ JSONPort
+    <div className="subtitle">
+      Explore • Validate • Transform JSON
+    </div>
+  </div>
+
+  <div className="header-nav">
+    <button className="btn" onClick={()=>navigate("/")}>
+      Viewer
+    </button>
+
+    <button className="btn" onClick={()=>navigate("/diff")}>
+      Diff
+    </button>
+  </div>
+
+</div>
 
       <div className="toolbar">
 
