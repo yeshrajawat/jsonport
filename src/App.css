@@ -289,37 +289,44 @@ mark {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 10px;
+  gap: 15px;
   padding: 20px 0;
   position: absolute;
-  bottom: 20px;
+  bottom: 30px;
   left: 0;
   right: 0;
   pointer-events: none;
+  z-index: 10;
 }
 
 .diff-nav-badge {
   display: flex;
+  align-items: center;
   gap: 10px;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.95);
   padding: 8px 16px;
   border-radius: 30px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
   pointer-events: auto;
   border: 1px solid #dcd7cf;
+  backdrop-filter: blur(4px);
 }
 
 .diff-nav-count {
   display: flex;
   align-items: center;
   font-size: 14px;
-  min-width: 100px;
+  min-width: 120px;
   justify-content: center;
   font-weight: 500;
+  color: var(--text-main);
 }
 
 .diff-nav-action {
   pointer-events: auto;
   padding: 12px 24px;
-  font-size: 16px;
+  font-size: 15px;
+  font-weight: 500;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  border-radius: 30px;
 }

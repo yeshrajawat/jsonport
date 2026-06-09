@@ -83,23 +83,6 @@ export default function JsonDiffViewer() {
 
   return (
     <div className="app-container">
-      <div className="header">
-        <div className="header-left">
-          ⚓ JSONPort
-          <div className="subtitle">
-            Compare and analyze JSON differences
-          </div>
-        </div>
-        <div className="header-nav">
-          <button className="btn" onClick={() => navigate("/")}>
-            Viewer
-          </button>
-          <button className="btn" onClick={() => navigate("/diff")}>
-            Diff
-          </button>
-        </div>
-      </div>
-
       <div className="main" style={{ position: "relative" }}>
         {!isDiffing ? (
           <div className="diff-input-container">

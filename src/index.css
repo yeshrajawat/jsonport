@@ -1,3 +1,64 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Custom variables for our multiple themes */
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #fbfaf8;
+  --bg-tertiary: #f5f3ef;
+  --text-main: #2b2b2b;
+  --text-muted: #6b7280;
+  --accent: #c2410c;
+  --border-color: #e6e3dd;
+}
+
+[data-theme="dark"] {
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #334155;
+  --text-main: #f1f5f9;
+  --text-muted: #94a3b8;
+  --accent: #fb923c;
+  --border-color: #334155;
+}
+
+[data-theme="forest"] {
+  --bg-primary: #064e3b;
+  --bg-secondary: #065f46;
+  --bg-tertiary: #047857;
+  --text-main: #ecfdf5;
+  --text-muted: #a7f3d0;
+  --accent: #10b981;
+  --border-color: #065f46;
+}
+
+[data-theme="aurora"] {
+  --bg-primary: #1e1b4b;
+  --bg-secondary: #312e81;
+  --bg-tertiary: #4338ca;
+  --text-main: #e0e7ff;
+  --text-muted: #c7d2fe;
+  --accent: #818cf8;
+  --border-color: #3730a3;
+}
+
+[data-theme="mint"] {
+  --bg-primary: #f0fdfa;
+  --bg-secondary: #ccfbf1;
+  --bg-tertiary: #99f6e4;
+  --text-main: #134e4a;
+  --text-muted: #5eead4;
+  --accent: #0d9488;
+  --border-color: #99f6e4;
+}
+
+[data-theme="sunset"] {
+  --bg-primary: #fff7ed;
+  --bg-secondary: #ffedd5;
+  --bg-tertiary: #fed7aa;
+  --text-main: #7c2d12;
+  --text-muted: #fb923c;
+  --accent: #ea580c;
+  --border-color: #fed7aa;
+}
