@@ -28,7 +28,7 @@ export default function NavigationRail() {
     { id: "diff", label: "Diff", icon: ArrowLeftRight, path: "/diff", comingSoon: false },
     { id: "transform", label: "Transform", icon: Zap, path: "/transform", comingSoon: true },
     { id: "schema", label: "Schema", icon: FileCode, path: "/schema", comingSoon: true },
-    { id: "csv", label: "JSON to CSV", icon: Table, path: "/csv", comingSoon: true },
+    { id: "csv", label: "JSON to CSV", icon: Table, path: "/csv", comingSoon: false },
     { id: "xml", label: "JSON to XML", icon: FileCode, path: "/xml", comingSoon: true },
     { id: "decodeTokens", label: "Decode JWTs", icon: Key, path: "/xml", comingSoon: true },
   ];

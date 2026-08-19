@@ -5,6 +5,7 @@ import NavigationRail from "./components/NavigationRail";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import JsonViewer from "./components/JsonViewer";
 import JsonDiffViewer from "./components/JsonDiffViewer";
+import JsonToCsvViewer from "./components/JsonToCsvViewer";
 import Docs from "./components/Docs";
 import Changelog from "./components/Changelog";
 
@@ -28,6 +29,7 @@ function App() {
               <Routes>
                 <Route path="/" element={<JsonViewer />} />
                 <Route path="/diff" element={<JsonDiffViewer />} />
+                <Route path="/csv" element={<JsonToCsvViewer />} />
                 <Route path="/docs" element={<Docs />} />
                 <Route path="/changelog" element={< Changelog />} />
               </Routes>
