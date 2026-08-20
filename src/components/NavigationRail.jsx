@@ -30,7 +30,7 @@ export default function NavigationRail() {
     { id: "schema", label: "Schema", icon: FileCode, path: "/schema", comingSoon: true },
     { id: "csv", label: "JSON to CSV", icon: Table, path: "/csv", comingSoon: false },
     { id: "xml", label: "JSON to XML", icon: FileCode, path: "/xml", comingSoon: true },
-    { id: "decodeTokens", label: "Decode JWTs", icon: Key, path: "/xml", comingSoon: true },
+    { id: "jwt", label: "JWT Decoder", icon: Key, path: "/jwt", comingSoon: false },
   ];
 
   return (

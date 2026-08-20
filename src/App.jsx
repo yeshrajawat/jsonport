@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import JsonViewer from "./components/JsonViewer";
 import JsonDiffViewer from "./components/JsonDiffViewer";
 import JsonToCsvViewer from "./components/JsonToCsvViewer";
+import JwtDecoder from "./components/JwtDecoder";
 import Docs from "./components/Docs";
 import Changelog from "./components/Changelog";
 
@@ -30,6 +31,7 @@ function App() {
                 <Route path="/" element={<JsonViewer />} />
                 <Route path="/diff" element={<JsonDiffViewer />} />
                 <Route path="/csv" element={<JsonToCsvViewer />} />
+                <Route path="/jwt" element={<JwtDecoder />} />
                 <Route path="/docs" element={<Docs />} />
                 <Route path="/changelog" element={< Changelog />} />
               </Routes>
