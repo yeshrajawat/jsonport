@@ -60,21 +60,24 @@ const SAMPLE_TOKEN = `${base64UrlEncode(SAMPLE_HEADER)}.${base64UrlEncode(
   SAMPLE_PAYLOAD,
 )}.Sf1KxwRJsMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c`;
 
-/* ---------- Visual accents (purple for the JWT brand, kept project-aligned) ---------- */
+/* ---------- Visual accents (aligned to JSONPort's theme) ----------
+ *
+ * The JWT view uses the project theme accent (var(--accent)) so the page
+ * reads as part of the rest of the app. The three JWT segments (header,
+ * payload, signature) reuse the same accent with stepped alpha — visually
+ * distinguishing them while staying on-palette.
+ */
 
 const ACCENT = {
-  // Red accent so the JWT brand reads as its own thing while still sitting
-  // comfortably inside JSONPort's neutral palette (which already uses
-  // red for destructive actions and the default `--accent` warm orange).
-  brand: "#dc2626",
-  brandSoft: "rgba(220, 38, 38, 0.08)",
-  brandBorder: "rgba(220, 38, 38, 0.35)",
-  header: "#dc2626",
-  payload: "#10b981",
-  signature: "#f59e0b",
-  headerSoft: "rgba(220, 38, 38, 0.10)",
-  payloadSoft: "rgba(16, 185, 129, 0.10)",
-  signatureSoft: "rgba(245, 158, 11, 0.10)",
+  brand: "var(--accent)",
+  brandSoft: "var(--accent-soft, rgba(194, 65, 12, 0.08))",
+  brandBorder: "var(--accent-border, rgba(194, 65, 12, 0.35))",
+  header: "var(--accent)",
+  payload: "var(--accent)",
+  signature: "var(--accent)",
+  headerSoft: "var(--accent-soft, rgba(194, 65, 12, 0.10))",
+  payloadSoft: "var(--accent-soft, rgba(194, 65, 12, 0.10))",
+  signatureSoft: "var(--accent-soft, rgba(194, 65, 12, 0.10))",
 };
 
 /* ---------- Helpers ---------- */
@@ -277,8 +280,8 @@ export default function JwtDecoder() {
             <div
               className="hidden md:flex items-start gap-3 px-4 py-3 rounded-lg border"
               style={{
-                background: "rgba(16, 185, 129, 0.06)",
-                borderColor: "rgba(16, 185, 129, 0.35)",
+                background: ACCENT.brandSoft,
+                borderColor: ACCENT.brandBorder,
                 color: "var(--text-main)",
               }}
             >
@@ -461,7 +464,7 @@ export default function JwtDecoder() {
             </div>
             <div
               className="rounded-md border overflow-hidden"
-              style={{ borderColor: "rgba(16, 185, 129, 0.35)", background: "var(--bg-primary)" }}
+              style={{ borderColor: ACCENT.brandBorder, background: "var(--bg-primary)" }}
             >
               <Editor
                 height="220px"
@@ -496,7 +499,7 @@ export default function JwtDecoder() {
             <div
               className="rounded-md border p-3 font-mono text-xs break-all"
               style={{
-                borderColor: "rgba(245, 158, 11, 0.35)",
+                borderColor: ACCENT.brandBorder,
                 background: ACCENT.signatureSoft,
               }}
             >
@@ -505,15 +508,15 @@ export default function JwtDecoder() {
             <div
               className="mt-3 rounded-md p-3 text-xs leading-relaxed"
               style={{
-                background: "rgba(59, 130, 246, 0.08)",
-                border: "1px solid rgba(59, 130, 246, 0.3)",
+                background: ACCENT.brandSoft,
+                border: `1px solid ${ACCENT.brandBorder}`,
                 color: "var(--text-main)",
               }}
             >
               <div className="flex items-start gap-2">
-                <Info size={14} className="mt-0.5 flex-shrink-0 text-blue-500" />
+                <Info size={14} className="mt-0.5 flex-shrink-0" style={{ color: ACCENT.brand }} />
                 <div>
-                  <div className="font-semibold mb-0.5 text-blue-600">
+                  <div className="font-semibold mb-0.5" style={{ color: ACCENT.brand }}>
                     This is the digital signature of the token.
                   </div>
                   <div className="opacity-70">

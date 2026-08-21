@@ -7,6 +7,9 @@ import JsonViewer from "./components/JsonViewer";
 import JsonDiffViewer from "./components/JsonDiffViewer";
 import JsonToCsvViewer from "./components/JsonToCsvViewer";
 import JwtDecoder from "./components/JwtDecoder";
+import Base64Viewer from "./components/Base64Viewer";
+import UrlViewer from "./components/UrlViewer";
+import StringJsonViewer from "./components/StringJsonViewer";
 import Docs from "./components/Docs";
 import Changelog from "./components/Changelog";
 
@@ -31,9 +34,12 @@ function App() {
                 <Route path="/" element={<JsonViewer />} />
                 <Route path="/diff" element={<JsonDiffViewer />} />
                 <Route path="/csv" element={<JsonToCsvViewer />} />
+                <Route path="/base64" element={<Base64Viewer />} />
+                <Route path="/url" element={<UrlViewer />} />
+                <Route path="/string-json" element={<StringJsonViewer />} />
                 <Route path="/jwt" element={<JwtDecoder />} />
                 <Route path="/docs" element={<Docs />} />
-                <Route path="/changelog" element={< Changelog />} />
+                <Route path="/changelog" element={<Changelog />} />
               </Routes>
             </main>
           </div>
